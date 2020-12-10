@@ -1,0 +1,101 @@
+version: "3.4"
+services:
+  vpn-mullvad:
+    image: dperson/openvpn-client
+    container_name: vpn-mullvad
+    # cap_add, security_opt, and volume required for the image to function
+    cap_add:
+      - net_admin
+    environment:
+      TZ: 'CST'
+    networks:
+      - default
+    # if using '-d' or 'DNS' you can't enable the `read_only: true` option
+    # read_only: true
+    tmpfs:
+      - /run
+      - /tmp
+    restart: unless-stopped
+    security_opt:
+      - label:disable
+    stdin_open: true
+    tty: true
+    volumes:
+      - /dev/net:/dev/net:z
+      - ./mullvad_config_linux:/vpn
+    #sysctls:
+      #net.ipv6.conf.all.disable_ipv6: 0
+    #sysctls should not be necessary, remember to disable ipv6 in mullvad_XX_XX.conf
+    # From: https://mullvad.net/en/help/linux-openvpn-installation/
+    # - Under Section: Troubleshooting
+    # -- I have disabled IPv6 and OpenVPN exits with a fatal error.
+    #
+    # Edit the OpenVPN configuration and make the following changes:
+    #
+    #   replace proto udp with proto udp4.
+    #   replace proto tcp with proto tcp4.
+    #   add pull-filter ignore "route-ipv6"
+    #   add pull-filter ignore "ifconfig-ipv6"
+    command: ["-f", "\"\""]
+    ports:
+      - 8989:8989
+      - 9117:9117
+      - 9091:9091
+      - 8112:8112
+    # Put .ovpn configuration file in the /vpn directory (in "volumes:" above or
+    # launch using the command line arguments, IE pick one:
+    #  - ./vpn:/vpn
+    # command: 'server;user;password[;port]'
+  
+  deluge:
+    image: ghcr.io/linuxserver/deluge
+    container_name: deluge
+    depends_on:
+      - vpn-mullvad
+    network_mode: "service:vpn-mullvad"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - DELUGE_LOGLEVEL=error #optional
+    volumes:
+      - ./deluge_config:/config
+      - ./torrent_client_downloads:/downloads
+    restart: unless-stopped
+
+  jackett:
+    image: ghcr.io/linuxserver/jackett
+    container_name: jackett
+    depends_on:
+      - vpn-mullvad
+    network_mode: "service:vpn-mullvad"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+      - AUTO_UPDATE=true #optional
+      #- RUN_OPTS=<run options here> #optional
+    volumes:
+      - ./jackett_config:/config
+      - ./jackett_blackhole:/downloads
+    restart: unless-stopped
+
+  sonarr:
+    image: ghcr.io/linuxserver/sonarr
+    container_name: sonarr
+    depends_on:
+      - vpn-mullvad
+    network_mode: "service:vpn-mullvad"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Chicago
+      # - UMASK_SET=022 #optional
+    volumes:
+      - ./sonarr_config:/config
+      - ./sonarr_shows:/tv
+      - ./torrent_client_downloads:/downloads
+    restart: unless-stopped
+
+networks:
+  default:
