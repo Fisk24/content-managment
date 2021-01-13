@@ -42,10 +42,26 @@ services:
       - 9117:9117
       - 9091:9091
       - 8112:8112
+      - 6789:6789
     # Put .ovpn configuration file in the /vpn directory (in "volumes:" above or
     # launch using the command line arguments, IE pick one:
     #  - ./vpn:/vpn
     # command: 'server;user;password[;port]'
+  
+  nzbget:
+    image: ghcr.io/linuxserver/nzbget
+    container_name: nzbget
+    depends_on:
+      - vpn-mullvad
+    network_mode: "service:vpn-mullvad"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+    volumes:
+      - ./nzbget_config:/config
+      - ./usenet_downloads:/downloads
+    restart: unless-stopped
   
   deluge:
     image: ghcr.io/linuxserver/deluge
