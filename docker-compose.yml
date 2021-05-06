@@ -22,7 +22,7 @@ services:
     tty: true
     volumes:
       - /dev/net:/dev/net:z
-      - ./mullvad_config_linux:/vpn
+      - /etc/openvpn:/vpn
     #sysctls:
       #net.ipv6.conf.all.disable_ipv6: 0
     #sysctls should not be necessary, remember to disable ipv6 in mullvad_XX_XX.conf
@@ -38,11 +38,13 @@ services:
     #   add pull-filter ignore "ifconfig-ipv6"
     command: ["-f", "\"\""]
     ports:
-      - 8989:8989
-      - 9117:9117
-      - 9091:9091
-      - 8112:8112
-      - 6789:6789
+      - 8989:8989 # Sonarr
+      - 7878:7878 # Radarr
+      - 8686:8686 # Lidarr
+      - 9117:9117 # Jackett
+      - 9091:9091 # 
+      - 8112:8112 # Deluge
+      - 6789:6789 # NZBGet
     # Put .ovpn configuration file in the /vpn directory (in "volumes:" above or
     # launch using the command line arguments, IE pick one:
     #  - ./vpn:/vpn
@@ -59,8 +61,8 @@ services:
       - PGID=1000
       - TZ=Europe/London
     volumes:
-      - ./nzbget_config:/config
-      - ./usenet_downloads:/downloads
+      - /home/fisk/content-managment/nzbget/config:/config
+      - /mnt/Media1/Downloads:/downloads
     restart: unless-stopped
   
   deluge:
@@ -75,8 +77,8 @@ services:
       - TZ=Europe/London
       - DELUGE_LOGLEVEL=error #optional
     volumes:
-      - ./deluge_config:/config
-      - ./torrent_client_downloads:/downloads
+      - /home/fisk/content-managment/deluge/config:/config
+      - /mnt/Media1/Downloads:/downloads
     restart: unless-stopped
 
   jackett:
@@ -92,8 +94,8 @@ services:
       - AUTO_UPDATE=true #optional
       #- RUN_OPTS=<run options here> #optional
     volumes:
-      - ./jackett_config:/config
-      - ./jackett_blackhole:/downloads
+      - /home/fisk/content-managment/jackett/config:/config
+      - /home/fisk/content-managment/jackett/blackhole:/downloads
     restart: unless-stopped
 
   sonarr:
@@ -108,9 +110,43 @@ services:
       - TZ=America/Chicago
       # - UMASK_SET=022 #optional
     volumes:
-      - ./sonarr_config:/config
-      - ./sonarr_shows:/tv
-      - ./torrent_client_downloads:/downloads
+      - /home/fisk/content-managment/sonarr/config:/config
+      - /mnt/Media1/Videos/Shows:/tv
+      - /mnt/Media1/Downloads:/downloads
+    restart: unless-stopped
+
+  radarr:
+    image: ghcr.io/linuxserver/radarr
+    container_name: radarr
+    depends_on:
+      - vpn-mullvad
+    network_mode: "service:vpn-mullvad"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - UMASK_SET=022 #optional
+    volumes:
+      - /home/fisk/content-managment/radarr/config:/config
+      - /mnt/Media1/Videos/Movies:/movies
+      - /mnt/Media1/Downloads:/downloads
+    restart: unless-stopped
+
+  lidarr:
+    image: ghcr.io/linuxserver/lidarr
+    container_name: lidarr
+    depends_on:
+      - vpn-mullvad
+    network_mode: "service:vpn-mullvad"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/London
+      - UMASK_SET=022 #optional
+    volumes:
+      - /home/fisk/content-managment/lidarr/config:/config
+      - /mnt/Media1/Music:/music
+      - /mnt/Media1/Downloads:/downloads
     restart: unless-stopped
 
 networks:

@@ -12,5 +12,6 @@ echo "Copying docker-compose file..."
 mkdir /etc/docker/compose/content-management
 cp ./docker-compose.yml /etc/docker/compose/content-management/docker-compose.yml
 
+systemctl daemon-reload
 systemctl start docker-compose@content-management
 systemctl enable docker-compose@content-management
